@@ -111,7 +111,7 @@ class GradeController extends Controller
      * 3. Perbarui Nilai Siswa (Edit Nilai / Catatan)
      * PUT /api/teacher/grades/{id}
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id)
     {
         $grade = Grade::findOrFail($id);
 
@@ -135,7 +135,7 @@ class GradeController extends Controller
      * 4. Hapus Rekor Nilai
      * DELETE /api/teacher/grades/{id}
      */
-    public function destroy($id)
+    public function destroy(int $id)
     {
         $grade = Grade::findOrFail($id);
         $grade->delete();
