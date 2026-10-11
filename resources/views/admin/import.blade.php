@@ -1,114 +1,143 @@
-@extends('admin.layout')
+@extends('layouts.admin')
 
-@section('title', 'Import Data')
-@section('page_title', 'Import Data Siswa & Wali Murid')
+@section('title', 'Impor ' . $import->subject())
+
+@php
+    $result = session('import_result');
+    $labels = ['siswa' => 'Siswa', 'guru' => 'Guru'];
+@endphp
 
 @section('content')
-<div class="max-w-4xl space-y-6">
-    <!-- Header -->
-    <div>
-        <h2 class="text-base font-semibold text-slate-900 tracking-tight">Unggah Berkas Data Kolektif</h2>
-        <p class="text-xs text-slate-500 mt-0.5">Sistem akan secara otomatis memproses data siswa, mengaitkan akun wali murid berdasarkan alamat email, dan mengalokasikan kelas.</p>
-    </div>
+    <x-admin.page-header
+        title="Impor dari Excel"
+        description="Tambahkan atau perbarui banyak data sekaligus. Data yang sudah ada dicocokkan lewat NIS atau NUPTK, jadi mengunggah ulang tidak membuat data ganda." />
 
-    <!-- Upload Card -->
-    <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-5">
-        <form action="{{ route('admin.import.process') }}" method="POST" enctype="multipart/form-data" class="space-y-5">
-            @csrf
-            
-            <div>
-                <label class="block text-xs font-medium text-slate-700 mb-2">Berkas Spreadsheet (Format CSV)</label>
-                <div class="border-2 border-dashed border-slate-200 hover:border-slate-300 rounded-xl p-8 text-center bg-slate-50/40 hover:bg-slate-50 transition cursor-pointer flex flex-col items-center justify-center">
-                    <svg class="w-10 h-10 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <div class="text-xs text-slate-600 mb-2">
-                        <label for="file_excel" class="font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Pilih berkas CSV</label>
-                        <span>atau seret berkas ke area ini</span>
-                    </div>
-                    <input id="file_excel" type="file" name="file_excel" accept=".csv" required class="text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" />
-                    <span class="text-[11px] text-slate-400 mt-2">Maksimal ukuran berkas 5MB (.csv dengan pemisah koma)</span>
+    <nav class="mb-5 inline-flex rounded-lg border border-garis bg-white p-1" aria-label="Jenis data">
+        @foreach ($labels as $key => $label)
+            <a href="{{ route('admin.import.create', $key) }}"
+               @if ($key === $type) aria-current="page" @endif
+               @class([
+                   'rounded-md px-4 py-1.5 text-sm font-semibold transition-colors',
+                   'bg-dongker text-white' => $key === $type,
+                   'text-redup hover:text-dongker' => $key !== $type,
+               ])>{{ $label }}</a>
+        @endforeach
+    </nav>
+
+    @if ($result)
+        <x-admin.panel class="mb-5" :title="'Hasil impor ' . $result['file']">
+            <dl class="grid grid-cols-3 divide-x divide-garis rounded-lg border border-garis">
+                <div class="p-3">
+                    <dt class="text-[13px] text-redup">Data baru</dt>
+                    <dd class="text-2xl font-extrabold text-hadir">{{ $result['created'] }}</dd>
                 </div>
-            </div>
+                <div class="p-3">
+                    <dt class="text-[13px] text-redup">Diperbarui</dt>
+                    <dd class="text-2xl font-extrabold text-dongker">{{ $result['updated'] }}</dd>
+                </div>
+                <div class="p-3">
+                    <dt class="text-[13px] text-redup">Gagal</dt>
+                    <dd @class(['text-2xl font-extrabold', 'text-alpa' => count($result['failures']) > 0, 'text-redup' => count($result['failures']) === 0])>{{ count($result['failures']) }}</dd>
+                </div>
+            </dl>
 
-            <div class="flex items-center justify-between pt-2">
-                <a href="{{ route('admin.students') }}" class="text-xs font-medium text-slate-600 hover:text-slate-900 transition">
-                    Kembali ke Data Siswa
+            @if (count($result['failures']) > 0)
+                <p class="mt-4 text-sm text-redup">Baris berikut tidak disimpan. Perbaiki di file Excel, lalu unggah ulang file yang sama; baris yang sudah berhasil hanya akan diperbarui.</p>
+                <div class="mt-3 max-h-80 overflow-y-auto rounded-lg border border-garis">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="w-24">Baris</th>
+                                <th>Masalah</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($result['failures'] as $failure)
+                                <tr>
+                                    <td class="font-semibold">{{ $failure['row'] }}</td>
+                                    <td class="text-alpa">{{ $failure['message'] }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @elseif ($result['created'] + $result['updated'] === 0)
+                <p class="mt-4 text-sm text-redup">File tidak berisi data. Pastikan data diisi mulai baris ke-2 di sheet pertama.</p>
+            @else
+                <p class="mt-4 text-sm text-hadir">Semua baris berhasil disimpan.</p>
+            @endif
+        </x-admin.panel>
+    @endif
+
+    <div class="grid gap-5 lg:grid-cols-5">
+        <div class="space-y-5 lg:col-span-3">
+            <x-admin.panel title="1. Unduh template" description="Kolomnya sudah urut dan diformat sebagai teks, jadi NIS dan NUPTK tidak berubah jadi angka ilmiah di Excel.">
+                <a href="{{ route('admin.import.template', $type) }}" class="btn btn-secondary">
+                    <x-icon name="download" class="size-4" />
+                    template-impor-{{ $type }}.xlsx
                 </a>
-                <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium shadow-sm transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    <span>Mulai Impor Data</span>
-                </button>
-            </div>
-        </form>
-    </div>
+            </x-admin.panel>
 
-    <!-- Spesifikasi Format CSV -->
-    <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-4">
-        <div class="flex items-center justify-between">
-            <h3 class="text-xs font-semibold text-slate-900 uppercase tracking-wider">Format Kolom CSV yang Didukung</h3>
-            <span class="text-[11px] font-mono text-slate-400">Header wajib disertakan pada baris pertama</span>
+            <x-admin.panel title="2. Isi data di Excel">
+                <ul class="list-disc space-y-1 pl-5 text-sm text-redup marker:text-garis">
+                    <li>Isi mulai baris ke-2 di sheet pertama. Baris contoh boleh ditimpa atau dihapus.</li>
+                    <li>Jangan menambah, menghapus, atau menukar urutan kolom.</li>
+                    @if ($type === 'siswa')
+                        <li>Tanggal lahir boleh ditulis 2011-05-12 atau 12/05/2011.</li>
+                        <li>Kakak-adik dengan email wali yang sama otomatis tertaut ke satu akun orang tua.</li>
+                    @else
+                        <li>NUPTK hanya berisi angka. Nomor HP boleh dikosongkan.</li>
+                    @endif
+                </ul>
+            </x-admin.panel>
+
+            <x-admin.panel title="3. Unggah file">
+                <form action="{{ route('admin.import.store', $type) }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <label for="file"
+                           class="flex cursor-pointer items-center gap-3 rounded-lg border-2 border-dashed border-garis px-4 py-6 transition-colors hover:border-dongker/40 hover:bg-dongker-50/50 has-focus-visible:border-dongker">
+                        <span class="grid size-10 shrink-0 place-items-center rounded-lg bg-dongker-50 text-dongker">
+                            <x-icon name="file" />
+                        </span>
+                        <span class="min-w-0">
+                            <span data-file-name="Pilih file .xlsx atau .csv" class="block truncate font-semibold">Pilih file .xlsx atau .csv</span>
+                            <span class="block text-[13px] text-redup">Maksimal 5 MB. CSV dengan koma atau titik koma juga bisa.</span>
+                        </span>
+                        <input id="file" type="file" name="file" accept=".xlsx,.csv" required class="sr-only" data-file-input>
+                    </label>
+
+                    @error('file')
+                        <p class="mt-2 text-[13px] text-alpa" role="alert">{{ $message }}</p>
+                    @enderror
+
+                    <button type="submit" class="btn btn-primary mt-4">
+                        <x-icon name="upload" class="size-4" />
+                        Impor {{ $import->subject() }}
+                    </button>
+                </form>
+            </x-admin.panel>
         </div>
 
-        <div class="overflow-x-auto border border-slate-200/70 rounded-lg">
-            <table class="w-full text-left text-xs">
-                <thead>
-                    <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-[11px]">
-                        <th class="px-4 py-2.5">No</th>
-                        <th class="px-4 py-2.5">Nama Kolom</th>
-                        <th class="px-4 py-2.5">Tipe Data</th>
-                        <th class="px-4 py-2.5">Contoh Nilai</th>
-                        <th class="px-4 py-2.5">Keterangan</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 text-slate-700 text-[11px]">
-                    <tr>
-                        <td class="px-4 py-2 text-slate-400 font-mono">1</td>
-                        <td class="px-4 py-2 font-mono font-medium text-slate-800">NIS</td>
-                        <td class="px-4 py-2 text-slate-500">Angka / Text</td>
-                        <td class="px-4 py-2 font-mono">20241010</td>
-                        <td class="px-4 py-2 text-slate-500">Nomor Induk Siswa unik (ID login ortu)</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 text-slate-400 font-mono">2</td>
-                        <td class="px-4 py-2 font-mono font-medium text-slate-800">Nama Siswa</td>
-                        <td class="px-4 py-2 text-slate-500">Text</td>
-                        <td class="px-4 py-2 font-medium">Rizky Pratama</td>
-                        <td class="px-4 py-2 text-slate-500">Nama lengkap siswa</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 text-slate-400 font-mono">3</td>
-                        <td class="px-4 py-2 font-mono font-medium text-slate-800">Kelas</td>
-                        <td class="px-4 py-2 text-slate-500">Text</td>
-                        <td class="px-4 py-2">8-A</td>
-                        <td class="px-4 py-2 text-slate-500">Otomatis didaftarkan jika belum ada</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 text-slate-400 font-mono">4</td>
-                        <td class="px-4 py-2 font-mono font-medium text-slate-800">Tanggal Lahir</td>
-                        <td class="px-4 py-2 text-slate-500">YYYY-MM-DD</td>
-                        <td class="px-4 py-2 font-mono">2011-05-12</td>
-                        <td class="px-4 py-2 text-slate-500">Format tanggal internasional</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 text-slate-400 font-mono">5</td>
-                        <td class="px-4 py-2 font-mono font-medium text-slate-800">Nama Wali</td>
-                        <td class="px-4 py-2 text-slate-500">Text</td>
-                        <td class="px-4 py-2 font-medium">Budi Pratama</td>
-                        <td class="px-4 py-2 text-slate-500">Nama orang tua / wali murid</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-2 text-slate-400 font-mono">6</td>
-                        <td class="px-4 py-2 font-mono font-medium text-slate-800">Gmail Wali</td>
-                        <td class="px-4 py-2 text-slate-500">Email</td>
-                        <td class="px-4 py-2 font-mono">budi@gmail.com</td>
-                        <td class="px-4 py-2 text-slate-500">Tujuan pengiriman kode OTP reset kata sandi</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        <x-admin.panel class="lg:col-span-2 self-start" title="Kolom di template" description="Dibaca berdasarkan urutan, bukan judul kolom." flush>
+            <ol class="divide-y divide-garis border-t border-garis">
+                @foreach ($import->columns() as $column)
+                    <li class="flex gap-3 px-5 py-3 text-sm">
+                        <span class="w-4 shrink-0 font-semibold text-redup">{{ chr(64 + $loop->iteration) }}</span>
+                        <div class="min-w-0">
+                            <p class="font-semibold">{{ $column->label }}
+                                @if (in_array('required', $column->rules, true))
+                                    <span class="font-normal text-redup">(wajib)</span>
+                                @endif
+                            </p>
+                            <p class="text-redup">{{ $column->note }}</p>
+                            <p class="mt-0.5 truncate text-[13px] text-redup">Contoh: <span class="text-teks">{{ $column->example }}</span></p>
+                        </div>
+                    </li>
+                @endforeach
+            </ol>
+            <p class="border-t border-garis px-5 py-3 text-[13px] text-redup">
+                Akun baru mendapat kata sandi awal <strong class="font-semibold text-teks">password123</strong>. Kata sandi akun lama tidak diubah.
+            </p>
+        </x-admin.panel>
     </div>
-</div>
 @endsection
