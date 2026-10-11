@@ -173,6 +173,55 @@ class AttendanceController extends Controller
                 'method'        => $attendance->method,
                 'check_in_time' => Carbon::parse($attendance->check_in_time)->format('H:i:s'),
             ]
+        ], 200);    
+    }
+
+    // 4. ambil jadwal mengajar guru 
+    // GET /api/teacher/schedules
+    public function teacherSchedules(Request $request)
+    {
+        $teacher = Auth::user()->teacher;
+        if (!$teacher) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Data profil guru tidak ditemukan.'
+            ], 404);
+        }
+        $day = $request->query('day'); // filter opsional: misal "Senin"
+        $query = Schedule::with(['schoolClass', 'subject'])
+            ->where('teacher_id', $teacher->id);
+        if ($day) {
+            $query->where('day_of_week', $day);
+        }
+        $schedules = $query->orderBy('start_time', 'asc')->get()->map(function ($sch) {
+            return [
+                'id'           => $sch->id,
+                'class_id'     => $sch->class_id,
+                'class_name'   => $sch->schoolClass->name ?? '-',
+                'subject_id'   => $sch->subject_id,
+                'subject_name' => $sch->subject->name ?? '-',
+                'day_of_week'  => $sch->day_of_week,
+                'start_time'   => Carbon::parse($sch->start_time)->format('H:i'),
+                'end_time'     => Carbon::parse($sch->end_time)->format('H:i'),
+            ];
+        });
+        return response()->json([
+            'status' => 'success',
+            'data'   => $schedules,
+        ], 200);
+    }
+
+    // 5. ambil daftar siswa berdasarkan kelas (untuk form nilai dan presensi)
+    public function classStudents(int $classId)
+    {
+        $students = Student::where('class_id', $classId)
+            ->where('is_active', true)
+            ->orderBy('full_name', 'asc')
+            ->get(['id', 'nis', 'full_name', 'class_id']);
+        return response()->json([
+            'status' => 'success',
+            'total'  => $students->count(),
+            'data'   => $students,
         ], 200);
     }
 }
