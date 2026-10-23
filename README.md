@@ -1,58 +1,113 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Smart School - Backend (Laravel)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+REST API dan dashboard admin untuk aplikasi mobile [Smart School](https://github.com/mgeraldiarr/smart-school-mobile): login guru (NUPTK) dan wali murid (NISM), presensi wajah, nilai, serta reset kata sandi lewat OTP Gmail.
 
-## About Laravel
+## Prasyarat
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+| Kebutuhan | Keterangan |
+|---|---|
+| **PHP 8.3+ & Composer** | Pasang lewat [php.new](https://php.new) (Laravel Herd). PHP bawaan XAMPP masih 8.2 dan **tidak bisa** dipakai. |
+| **XAMPP** | Hanya untuk MySQL (port 3306). |
+| **ngrok** | Daftar gratis di [ngrok.com](https://ngrok.com), lalu sekali jalankan `ngrok config add-authtoken <token-kamu>`. Hanya perlu jika teman mengakses dari jaringan lain. |
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Cek versi PHP dengan `php -v`. Jika yang muncul 8.2, berarti terminal masih memakai PHP dari XAMPP. Pasang php.new lalu buka ulang terminal.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Setup pertama kali
 
-## Learning Laravel
+1. Clone repo:
+   ```bash
+   git clone https://github.com/mgeraldiarr/smart-school-laravel.git
+   ```
+2. Klik dua kali **`setup-dev.bat`**. Skrip ini akan:
+   - membuat `.env` dari `.env.example`
+   - menjalankan `composer install` dan `php artisan key:generate`
+   - menyalakan MySQL XAMPP dan membuat tabel (jika database `db_smart_laravel` belum ada, jawab **yes** saat ditanya)
+   - menawarkan pengisian data contoh (akun guru, wali murid, jadwal, nilai)
+3. Buka `.env`, lalu isi `NGROK_URL` dengan alamat ngrok milikmu (lihat [dashboard.ngrok.com](https://dashboard.ngrok.com) > Domains). Boleh dikosongkan; alamatnya tetap terlihat di jendela ngrok.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Menjalankan setiap hari
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Klik dua kali **`start-dev.bat`**. Skrip ini menyalakan empat layanan, masing-masing di jendela sendiri:
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+| Jendela | Fungsi |
+|---|---|
+| MySQL (XAMPP) | Database |
+| Laravel Server | API di `http://127.0.0.1:8000` (juga bisa diakses HP di Wi-Fi yang sama) |
+| Queue Worker (Email OTP) | Mengirim email OTP di belakang layar. Jika jendela ini mati, OTP tidak terkirim. |
+| ngrok | Alamat publik agar teman di luar rumah bisa mengakses |
 
-## Agentic Development
+Layanan yang sudah menyala dilewati, jadi aman diklik ulang. Tutup jendelanya untuk mematikan.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Setelah mengubah kode email atau `.env`, tutup jendela **Queue Worker** lalu klik `start-dev.bat` lagi agar worker memuat perubahan.
 
-```bash
-composer require laravel/boost --dev
+Server backend aktif di `http://127.0.0.1:8000`, dashboard admin di `http://127.0.0.1:8000/admin`.
 
-php artisan boost:install
-```
+### Cara manual (tanpa file .bat)
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Jika tidak ingin memakai `setup-dev.bat` / `start-dev.bat`, jalankan perintahnya sendiri.
 
-## Contributing
+1. Buka **XAMPP Control Panel**, lalu klik **Start** pada modul **MySQL**.
+2. Setup pertama kali (cukup sekali):
+   ```bash
+   copy .env.example .env
+   composer install
+   php artisan key:generate
+   php artisan migrate:fresh --seed
+   ```
+3. Setiap mulai kerja, buka dua terminal:
+   ```bash
+   # Terminal 1: server API
+   php artisan serve --host=0.0.0.0 --port=8000
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+   # Terminal 2: pengirim email OTP
+   php artisan queue:work
+   ```
 
-## Code of Conduct
+## Bekerja beda rumah / beda internet (ngrok, gratis)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Jika anggota tim mengerjakan dari tempat berbeda, anggota yang menjalankan backend membuka akses publik lewat ngrok:
 
-## Security Vulnerabilities
+1. Jalankan ngrok (otomatis jika memakai `start-dev.bat`):
+   ```bash
+   ngrok http 8000
+   ```
+2. Salin alamat **Forwarding** yang muncul (misal `https://nama-kamu.ngrok-free.dev`), lalu bagikan ke tim mobile.
+3. Tim mobile menjalankan aplikasi dengan alamat tersebut, **tanpa mengubah kode**:
+   ```bash
+   flutter run --dart-define=API_URL=https://nama-kamu.ngrok-free.dev/api
+   ```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Pilihan `API_URL` lain untuk pengujian tanpa ngrok:
 
-## License
+| Perangkat | `API_URL` |
+|---|---|
+| Android Emulator di laptop yang sama | `http://10.0.2.2:8000/api` |
+| HP fisik di Wi-Fi yang sama dengan laptop | `http://192.168.1.XX:8000/api` (IP laptop, cek dengan `ipconfig`) |
+| Chrome di laptop yang sama | `http://127.0.0.1:8000/api` |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Laptop yang menjalankan backend harus tetap menyala selama tim bekerja.
+
+## Email OTP
+
+Bawaan `.env.example` memakai `MAIL_MAILER=log`, sehingga **tidak ada email sungguhan yang terkirim**. Kode OTP bisa dilihat di:
+- respons API `forgot-password` (field `debug_otp`, hanya saat `APP_ENV=local`)
+- `storage/logs/laravel.log`
+
+Untuk mengirim lewat Gmail sungguhan, ubah bagian `MAIL_` di `.env` sesuai komentar di `.env.example`. `MAIL_PASSWORD` harus berisi [App Password Gmail](https://myaccount.google.com/apppasswords), bukan kata sandi Gmail biasa. Jangan commit `.env` dan jangan bagikan App Password di grup.
+
+## Akun contoh (dari seeder)
+
+| Peran | Login | Kata sandi |
+|---|---|---|
+| Guru | NUPTK `198501152010011002` | `password123` |
+| Wali Murid | NISM `20241001` | `password123` |
+| Admin (web) | `admin@smartschool.sch.id` | `admin123` |
+
+## Masalah umum
+
+| Gejala | Penyebab & solusi |
+|---|---|
+| `composer install` gagal: *requires php ^8.3* | Masih memakai PHP XAMPP 8.2. Pasang [php.new](https://php.new). |
+| Login dari aplikasi gagal / timeout | Pastikan jendela Laravel Server dan ngrok menyala, dan `API_URL` di aplikasi sesuai alamat ngrok. |
+| Kode OTP tidak pernah masuk | Jendela Queue Worker tidak menyala, atau `MAIL_MAILER` masih `log` (cek `debug_otp`). |
+| `SQLSTATE[HY000] [2002]` | MySQL XAMPP belum menyala. |
