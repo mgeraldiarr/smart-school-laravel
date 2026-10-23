@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Mail\OtpMail;
 use App\Models\User;
 use App\Models\Teacher;
 use App\Models\Student;
@@ -224,23 +225,20 @@ class AuthController extends Controller
             ]
         );
 
-        // Kirim email via Laravel Mailer
-        $emailSent = false;
+        // Masukkan email ke antrean agar respons API tidak menunggu SMTP Gmail.
+        // Pengiriman dijalankan oleh worker (`composer run dev` / `php artisan queue:work`).
+        $emailQueued = false;
         try {
-            Mail::send([], [], function ($message) use ($user, $otp) {
-                $message->to($user->email)
-                    ->subject('Kode Verifikasi Reset Kata Sandi - Smart School')
-                    ->html(view('emails.otp', ['otp' => $otp, 'user' => $user])->render());
-            });
-            $emailSent = true;
+            Mail::to($user->email)->queue(new OtpMail($otp, $user));
+            $emailQueued = true;
         } catch (\Throwable $e) {
-            Log::error('Gagal mengirim email OTP: ' . $e->getMessage());
+            Log::error('Gagal mengantrekan email OTP: ' . $e->getMessage());
         }
 
         $responseData = [
             'email' => $user->email,
             'expires_in_minutes' => 10,
-            'email_sent' => $emailSent,
+            'email_sent' => $emailQueued,
         ];
 
         // Sertakan debug_otp jika di environment lokal untuk kemudahan pengujian
@@ -250,8 +248,8 @@ class AuthController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => $emailSent 
-                ? 'Kode verifikasi 6 digit telah dikirimkan ke Gmail Anda.' 
+            'message' => $emailQueued
+                ? 'Kode verifikasi 6 digit sedang dikirim ke Gmail Anda.'
                 : 'Kode verifikasi telah dibuat. Periksa inbox/spam atau log sistem.',
             'data' => $responseData,
         ], 200);

@@ -18,10 +18,12 @@ Route::prefix('auth')->group(function () {
     Route::post('/teacher/login', [AuthController::class, 'loginTeacher']);
     Route::post('/parent/login', [AuthController::class, 'loginParent']);
     
-    // Pemulihan Akun via Gmail OTP
-    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-    Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
-    Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+    // Pemulihan Akun via Gmail OTP (dibatasi per email, lihat AppServiceProvider)
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:otp-send');
+    Route::middleware('throttle:otp-verify')->group(function () {
+        Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
+        Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+    });
 });
 
 // Protected Endpoints (Memerlukan Bearer Token Sanctum)
