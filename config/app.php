@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Jadwal pelajaran, batas jam presensi, dan Alpa otomatis memakai jam
+    // sekolah (WIB). Dengan UTC, absen sebelum 07:00 WIB tercatat di tanggal
+    // kemarin dan pengecekan jam pelajaran meleset 7 jam.
+    'timezone' => env('APP_TIMEZONE', 'Asia/Jakarta'),
 
     /*
     |--------------------------------------------------------------------------
