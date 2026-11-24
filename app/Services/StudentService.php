@@ -66,6 +66,7 @@ class StudentService
             // login tetap bisa lewat relasi parent_students.
             'username' => User::where('username', $student->nis)->exists() ? null : $student->nis,
             'password' => SpreadsheetImport::DEFAULT_PASSWORD,
+            'must_change_password' => true, // Sandi default wajib diganti saat login pertama.
             'role' => 'parent',
             'is_active' => true,
         ]);

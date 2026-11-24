@@ -83,7 +83,7 @@ class ParentMonitoringController extends Controller
                 'subject'       => $sch->subject->name ?? '-',
                 'teacher'       => $sch->teacher->full_name ?? '-',
                 'time_slot'     => "{$sch->start_time} - {$sch->end_time}",
-                'status'        => $record ? $record->status : 'Belum_Ada_Kabar',
+                'status'        => $record ? $record->status : Attendance::NOT_RECORDED,
                 'method'        => $record ? $record->method : null,
                 'check_in_time' => $record ? Carbon::parse($record->check_in_time)->format('H:i') : null,
             ];
