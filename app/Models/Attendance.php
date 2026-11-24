@@ -9,6 +9,12 @@ class Attendance extends Model
 {
     use HasFactory;
 
+    /**
+     * Status untuk siswa yang belum punya catatan presensi. Dipakai bersama
+     * oleh sesi guru dan monitoring wali agar aplikasi cukup mengenal satu nama.
+     */
+    public const NOT_RECORDED = 'Belum_Absen';
+
     protected $fillable = [
         'student_id',
         'schedule_id',

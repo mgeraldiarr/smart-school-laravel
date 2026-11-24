@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use App\Models\Grade;
+use App\Models\Schedule;
 use App\Models\Student;
+use App\Models\Teacher;
 use Carbon\Carbon;
 
 class GradeController extends Controller
@@ -24,7 +27,9 @@ class GradeController extends Controller
             'student_id'      => 'nullable|exists:students,id',
         ]);
 
+        // Guru hanya melihat nilai yang ia input sendiri.
         $query = Grade::with(['student', 'subject', 'schoolClass', 'teacher'])
+            ->where('teacher_id', $this->currentTeacher()->id)
             ->latest('assessment_date');
 
         if (!empty($validated['class_id'])) {
@@ -84,7 +89,21 @@ class GradeController extends Controller
             'assessment_date' => 'nullable|date',
         ]);
 
-        $teacherId = Auth::user()->teacher->id ?? null;
+        $teacherId = $this->currentTeacher()->id;
+
+        // Guru hanya boleh menilai mapel yang ia ajar di kelas tersebut.
+        $teachesSubject = Schedule::where('teacher_id', $teacherId)
+            ->where('class_id', $validated['class_id'])
+            ->where('subject_id', $validated['subject_id'])
+            ->exists();
+        if (! $teachesSubject) {
+            $this->fail('Anda tidak mengajar mata pelajaran ini di kelas tersebut.', 403);
+        }
+
+        $student = Student::findOrFail($validated['student_id']);
+        if ((int) $student->class_id !== (int) $validated['class_id']) {
+            $this->fail("Siswa {$student->full_name} bukan anggota kelas ini.", 422);
+        }
 
         $grade = Grade::create([
             'student_id'      => $validated['student_id'],
@@ -97,8 +116,6 @@ class GradeController extends Controller
             'teacher_notes'   => $validated['teacher_notes'] ?? null,
             'assessment_date' => $validated['assessment_date'] ?? Carbon::today()->toDateString(),
         ]);
-
-        $student = Student::find($validated['student_id']);
 
         return response()->json([
             'status'  => 'success',
@@ -113,7 +130,7 @@ class GradeController extends Controller
      */
     public function update(Request $request, int $id)
     {
-        $grade = Grade::findOrFail($id);
+        $grade = $this->ownedGrade($id);
 
         $validated = $request->validate([
             'title'           => 'sometimes|string|max:100',
@@ -137,12 +154,41 @@ class GradeController extends Controller
      */
     public function destroy(int $id)
     {
-        $grade = Grade::findOrFail($id);
+        $grade = $this->ownedGrade($id);
         $grade->delete();
 
         return response()->json([
             'status'  => 'success',
             'message' => 'Data nilai berhasil dihapus.'
         ], 200);
+    }
+
+    private function currentTeacher(): Teacher
+    {
+        $teacher = Auth::user()->teacher;
+        if (! $teacher) {
+            $this->fail('Data profil guru tidak ditemukan.', 404);
+        }
+
+        return $teacher;
+    }
+
+    /** Nilai hanya bisa diubah atau dihapus oleh guru yang menginputnya. */
+    private function ownedGrade(int $id): Grade
+    {
+        $grade = Grade::findOrFail($id);
+        if ((int) $grade->teacher_id !== (int) $this->currentTeacher()->id) {
+            $this->fail('Nilai ini diinput oleh guru lain.', 403);
+        }
+
+        return $grade;
+    }
+
+    private function fail(string $message, int $status): never
+    {
+        throw new HttpResponseException(response()->json([
+            'status'  => 'error',
+            'message' => $message,
+        ], $status));
     }
 }

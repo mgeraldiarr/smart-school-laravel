@@ -35,6 +35,7 @@ class TeacherService
 
         if (! $user->exists || ($data['reset_password'] ?? false)) {
             $user->password = SpreadsheetImport::DEFAULT_PASSWORD;
+            $user->must_change_password = true; // Sandi default wajib diganti saat login pertama.
         }
 
         $user->save();

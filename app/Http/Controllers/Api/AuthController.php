@@ -62,6 +62,7 @@ class AuthController extends Controller
                     'id' => $teacher->user->id,
                     'email' => $teacher->user->email,
                     'role' => $teacher->user->role,
+                    'must_change_password' => $teacher->user->must_change_password,
                 ],
                 'teacher' => [
                     'id' => $teacher->id,
@@ -136,6 +137,7 @@ class AuthController extends Controller
                     'id' => $user->id,
                     'email' => $user->email,
                     'role' => $user->role,
+                    'must_change_password' => $user->must_change_password,
                 ],
                 'parent' => [
                     'id' => $parent?->id,
@@ -176,9 +178,46 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'username' => $user->username,
                     'role' => $user->role,
+                    'must_change_password' => $user->must_change_password,
                 ],
                 'profile' => $profile,
             ]
+        ], 200);
+    }
+
+    /**
+     * Ganti kata sandi untuk pengguna yang sedang login (dipakai layar
+     * "wajib ganti sandi" saat login pertama dan menu Ubah Kata Sandi).
+     * POST /api/auth/change-password
+     */
+    public function changePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:8|confirmed|different:current_password',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Kata sandi lama tidak sesuai.',
+            ], 422);
+        }
+
+        $user->update([
+            'password' => $validated['password'], // Di-hash otomatis oleh cast 'hashed'.
+            'must_change_password' => false,
+        ]);
+
+        // Sesi di perangkat lain diakhiri; sesi yang sedang dipakai tetap aktif.
+        $user->tokens()->where('id', '!=', $user->currentAccessToken()->id)->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Kata sandi berhasil diperbarui.',
+            'data' => ['must_change_password' => false],
         ], 200);
     }
 
@@ -336,6 +375,7 @@ class AuthController extends Controller
         $user = User::where('email', $validated['email'])->firstOrFail();
         $user->update([
             'password' => Hash::make($validated['password']),
+            'must_change_password' => false,
         ]);
 
         // Hapus token reset yang sudah digunakan
